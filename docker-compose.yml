@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  # Database Services
+  mongodb:
+    image: mongo:6.0
+    container_name: jobapp-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: jobapp
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - jobapp-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: jobapp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - jobapp-network
+
+  # Microservices
+  auth-service:
+    build: 
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: jobapp-auth-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobapp_auth?authSource=admin
+      JWT_SECRET: mySecretKeyForJobApplicationPlatform2024
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - mongodb
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs:/app/logs
+
+  user-service:
+    build: 
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: jobapp-user-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobapp_users?authSource=admin
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY:-}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-jobapp-files}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - mongodb
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs:/app/logs
+
+  job-service:
+    build: 
+      context: ./job-service
+      dockerfile: Dockerfile
+    container_name: jobapp-job-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobapp_jobs?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs:/app/logs
+
+  application-service:
+    build: 
+      context: ./application-service
+      dockerfile: Dockerfile
+    container_name: jobapp-application-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobapp_applications?authSource=admin
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - mongodb
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs:/app/logs
+
+  notification-service:
+    build: 
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: jobapp-notification-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/jobapp_notifications?authSource=admin
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@jobapp.com}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - mongodb
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs:/app/logs
+
+networks:
+  jobapp-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
