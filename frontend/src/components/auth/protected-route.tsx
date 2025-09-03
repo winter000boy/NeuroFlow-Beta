@@ -102,7 +102,7 @@ export function EmployerRoute({ children }: { children: React.ReactNode }) {
 
 export function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
+    <ProtectedRoute allowedRoles={['ADMIN']} redirectTo="/admin/login">
       {children}
     </ProtectedRoute>
   )

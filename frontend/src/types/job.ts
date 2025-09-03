@@ -51,4 +51,40 @@ export interface JobApplication {
   appliedAt: string
   updatedAt: string
   notes?: string
+  candidate?: {
+    id: string
+    name: string
+    email: string
+    degree: string
+    graduationYear: number
+    resumeUrl?: string
+    linkedinProfile?: string
+    portfolioUrl?: string
+  }
+}
+
+export interface CreateJobRequest {
+  title: string
+  description: string
+  salary: {
+    min: number
+    max: number
+    currency: string
+  }
+  location: string
+  jobType: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'REMOTE'
+  expiresAt?: string
+}
+
+export interface JobAnalytics {
+  jobId: string
+  totalApplications: number
+  applicationsByStatus: {
+    APPLIED: number
+    IN_REVIEW: number
+    HIRED: number
+    REJECTED: number
+  }
+  viewCount: number
+  createdAt: string
 }

@@ -1,5 +1,5 @@
 import { apiClient } from './api'
-import { Job, JobSearchFilters, JobSearchResponse, JobApplication } from '@/types/job'
+import { Job, JobSearchFilters, JobSearchResponse, JobApplication, CreateJobRequest, JobAnalytics } from '@/types/job'
 
 export class JobService {
   private static readonly BASE_URL = '/jobs'
@@ -51,7 +51,7 @@ export class JobService {
   }
 
   // Employer-specific methods
-  static async createJob(jobData: Partial<Job>): Promise<Job> {
+  static async createJob(jobData: CreateJobRequest): Promise<Job> {
     const response = await apiClient.post(this.BASE_URL, jobData)
     return response.data
   }
@@ -84,6 +84,28 @@ export class JobService {
       status,
       notes
     })
+    return response.data
+  }
+
+  static async toggleJobStatus(jobId: string, isActive: boolean): Promise<Job> {
+    const response = await apiClient.patch(`${this.BASE_URL}/${jobId}/status`, {
+      isActive
+    })
+    return response.data
+  }
+
+  static async getJobAnalytics(jobId: string): Promise<JobAnalytics> {
+    const response = await apiClient.get(`${this.BASE_URL}/${jobId}/analytics`)
+    return response.data
+  }
+
+  static async getEmployerAnalytics(): Promise<{
+    totalJobs: number
+    activeJobs: number
+    totalApplications: number
+    recentApplications: JobApplication[]
+  }> {
+    const response = await apiClient.get('/employer/analytics')
     return response.data
   }
 }

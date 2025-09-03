@@ -1,82 +1,53 @@
-'use client'
+import { Metadata } from 'next'
+import { Suspense } from 'react'
+import { JobsPageClient } from './jobs-client'
 
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { ProtectedRoute } from '@/components/auth/protected-route'
-import { JobSearchForm } from '@/components/jobs/job-search-form'
-import { JobListing } from '@/components/jobs/job-listing'
-import { useJobSearch, useJobApplications } from '@/hooks/use-jobs'
-import { useAuth } from '@/hooks/use-auth'
-import { JobSearchFilters } from '@/types/job'
+export const metadata: Metadata = {
+  title: 'Browse Jobs - JobApp',
+  description: 'Find your dream job from thousands of opportunities. Search by location, job type, salary, and more. Apply to jobs from top companies.',
+  keywords: ['jobs', 'careers', 'employment', 'job search', 'hiring', 'opportunities'],
+  openGraph: {
+    title: 'Browse Jobs - JobApp',
+    description: 'Find your dream job from thousands of opportunities. Search by location, job type, salary, and more.',
+    type: 'website',
+    url: '/jobs',
+    images: [
+      {
+        url: '/og-jobs.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Browse Jobs on JobApp',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Browse Jobs - JobApp',
+    description: 'Find your dream job from thousands of opportunities.',
+    images: ['/og-jobs.jpg'],
+  },
+  alternates: {
+    canonical: '/jobs',
+  },
+}
 
 export default function JobsPage() {
-  const { user } = useAuth()
-  const { applyForJob } = useJobApplications()
-  const {
-    jobs,
-    loading,
-    error,
-    totalPages,
-    totalElements,
-    currentPage,
-    filters,
-    updateFilters,
-    goToPage
-  } = useJobSearch({ page: 0, size: 10 })
-
-  const [searchKeywords, setSearchKeywords] = useState<string[]>([])
-
-  const handleSearch = (newFilters: JobSearchFilters) => {
-    // Extract keywords for highlighting
-    const keywords = newFilters.search 
-      ? newFilters.search.split(' ').filter(word => word.length > 2)
-      : []
-    setSearchKeywords(keywords)
-    
-    updateFilters(newFilters)
-  }
-
-  const handleApply = async (jobId: string) => {
-    try {
-      await applyForJob(jobId)
-      toast.success('Application submitted successfully!')
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to apply for job'
-      toast.error(errorMessage)
-    }
-  }
-
   return (
-    <ProtectedRoute allowedRoles={['CANDIDATE', 'EMPLOYER', 'ADMIN']}>
+    <Suspense fallback={
       <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Find Your Next Opportunity</h1>
-            <p className="text-muted-foreground">
-              Discover amazing job opportunities from top companies
-            </p>
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            ))}
           </div>
-
-          <JobSearchForm
-            onSearch={handleSearch}
-            initialFilters={filters}
-            loading={loading}
-          />
-
-          <JobListing
-            jobs={jobs}
-            loading={loading}
-            error={error}
-            totalPages={totalPages}
-            currentPage={currentPage}
-            totalElements={totalElements}
-            filters={filters}
-            onPageChange={goToPage}
-            onApply={user?.role === 'CANDIDATE' ? handleApply : undefined}
-            highlightKeywords={searchKeywords}
-          />
         </div>
       </div>
-    </ProtectedRoute>
+    }>
+      <JobsPageClient />
+    </Suspense>
   )
 }

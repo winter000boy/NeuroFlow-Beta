@@ -36,6 +36,11 @@ interface DialogFooterProps {
   children: React.ReactNode
 }
 
+interface DialogTriggerProps {
+  asChild?: boolean
+  children: React.ReactNode
+}
+
 const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -115,6 +120,13 @@ const DialogFooter: React.FC<DialogFooterProps> = ({ className, children }) => {
   )
 }
 
+const DialogTrigger: React.FC<DialogTriggerProps> = ({ asChild, children }) => {
+  if (asChild) {
+    return <>{children}</>
+  }
+  return <>{children}</>
+}
+
 const DialogClose: React.FC<{ className?: string; onClick?: () => void }> = ({ 
   className, 
   onClick 
@@ -139,5 +151,6 @@ export {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
   DialogClose,
 }
