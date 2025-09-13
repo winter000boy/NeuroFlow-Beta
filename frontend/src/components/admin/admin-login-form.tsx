@@ -46,18 +46,9 @@ export function AdminLoginForm({ className }: AdminLoginFormProps) {
     setError('')
 
     try {
-      const result = await login(email, password)
-      
-      if (result.success && result.user?.role === 'ADMIN') {
-        router.push('/admin/dashboard')
-      } else if (result.success && result.user?.role !== 'ADMIN') {
-        setError('Access denied. Admin privileges required.')
-        setLoginAttempts(prev => prev + 1)
-      } else {
-        setError(result.error || 'Invalid credentials')
-        setLoginAttempts(prev => prev + 1)
-      }
-    } catch {
+      await login(email, password)
+      // If we get here, login was successful and user will be redirected
+    } catch (error) {
       setError('Login failed. Please try again.')
       setLoginAttempts(prev => prev + 1)
     } finally {

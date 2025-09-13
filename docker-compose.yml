@@ -133,6 +133,30 @@ services:
     volumes:
       - ./logs:/app/logs
 
+  # Frontend
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jobapp-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NEXT_PUBLIC_APP_NAME: JobApp
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    depends_on:
+      - auth-service
+      - user-service
+      - job-service
+      - application-service
+    networks:
+      - jobapp-network
+    volumes:
+      - ./logs/frontend:/app/logs
+
 networks:
   jobapp-network:
     driver: bridge

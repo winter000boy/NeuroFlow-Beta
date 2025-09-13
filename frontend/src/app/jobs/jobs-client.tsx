@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { JobSearchForm } from '@/components/jobs/job-search-form'
 import { JobListing } from '@/components/jobs/job-listing'
+import { JobListingStructuredData } from '@/components/seo/job-listing-structured-data'
+import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { useJobSearch, useJobApplications } from '@/hooks/use-jobs'
 import { useAuth } from '@/hooks/use-auth'
 import { JobSearchFilters } from '@/types/job'
@@ -48,12 +50,21 @@ export function JobsPageClient() {
 
   return (
     <ProtectedRoute allowedRoles={['CANDIDATE', 'EMPLOYER', 'ADMIN']}>
+      <JobListingStructuredData 
+        jobs={jobs}
+        totalJobs={totalElements}
+        searchQuery={filters.search}
+        location={filters.location}
+      />
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-6">
+          <Breadcrumb items={[{ label: 'Jobs' }]} />
+          
           <div>
             <h1 className="text-3xl font-bold mb-2">Find Your Next Opportunity</h1>
             <p className="text-muted-foreground">
               Discover amazing job opportunities from top companies
+              {totalElements > 0 && ` (${totalElements.toLocaleString()} jobs available)`}
             </p>
           </div>
 

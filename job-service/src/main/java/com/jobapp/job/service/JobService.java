@@ -9,6 +9,10 @@ import com.jobapp.job.model.ExperienceLevel;
 import com.jobapp.job.repository.JobRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -43,6 +47,11 @@ public class JobService {
      * @param request the job creation request
      * @return the created job response
      */
+    @Caching(evict = {
+        @CacheEvict(value = "jobs", allEntries = true),
+        @CacheEvict(value = "jobSearch", allEntries = true),
+        @CacheEvict(value = "jobStats", key = "#employerId")
+    })
     public JobResponse createJob(String employerId, CreateJobRequest request) {
         Job job = new Job();
         job.setEmployerId(employerId);
@@ -70,6 +79,12 @@ public class JobService {
      * @param request the job update request
      * @return the updated job response
      */
+    @Caching(evict = {
+        @CacheEvict(value = "jobDetails", key = "#jobId"),
+        @CacheEvict(value = "jobs", allEntries = true),
+        @CacheEvict(value = "jobSearch", allEntries = true),
+        @CacheEvict(value = "jobStats", key = "#employerId")
+    })
     public JobResponse updateJob(String jobId, String employerId, UpdateJobRequest request) {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
@@ -206,6 +221,7 @@ public class JobService {
      * @return the job response
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "jobDetails", key = "#jobId")
     public JobResponse getJobById(String jobId) {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
@@ -259,6 +275,7 @@ public class JobService {
      * @return job statistics
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "jobStats", key = "#employerId")
     public JobStatisticsResponse getJobStatistics(String employerId) {
         long totalJobs = jobRepository.countByEmployerId(employerId);
         long activeJobs = jobRepository.countByEmployerIdAndIsActive(employerId, true);
@@ -327,6 +344,7 @@ public class JobService {
      * @return paginated job summary responses
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "jobSearch", key = "#search + '_' + #location + '_' + #jobType + '_' + #experienceLevel + '_' + #minSalary + '_' + #maxSalary + '_' + #skills + '_' + #page + '_' + #size + '_' + #sortBy + '_' + #sortDir")
     public PagedResponse<JobSummaryResponse> searchJobs(String search, String location, JobType jobType,
                                                        ExperienceLevel experienceLevel, Double minSalary, 
                                                        Double maxSalary, String skills, int page, int size, 

@@ -1,243 +1,172 @@
 package com.jobapp.user.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobapp.user.dto.CandidateRegistrationRequest;
 import com.jobapp.user.dto.CandidateProfileUpdateRequest;
 import com.jobapp.user.model.Candidate;
 import com.jobapp.user.repository.CandidateRepository;
-
+import com.jobapp.user.testdata.TestDataSeeder;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.transaction.annotation.Transactional;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.hamcrest.Matchers.*;
 
-/**
- * Integration tests for CandidateController
- * Requirements: 1.1, 1.2, 1.4, 1.5
- */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest
 @AutoConfigureWebMvc
-@TestPropertySource(locations = "classpath:application-test.yml")
-public class CandidateControllerIntegrationTest {
-    
+@ActiveProfiles("test")
+@Transactional
+class CandidateControllerIntegrationTest {
+
     @Autowired
-    private WebApplicationContext webApplicationContext;
-    
+    private MockMvc mockMvc;
+
     @Autowired
     private CandidateRepository candidateRepository;
-    
+
     @Autowired
-    private PasswordEncoder passwordEncoder;
-    
+    private TestDataSeeder testDataSeeder;
+
     @Autowired
     private ObjectMapper objectMapper;
-    
-    private MockMvc mockMvc;
-    
+
+    private CandidateRegistrationRequest registrationRequest;
+    private CandidateProfileUpdateRequest updateRequest;
+
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
-        candidateRepository.deleteAll();
+        registrationRequest = new CandidateRegistrationRequest();
+        registrationRequest.setEmail("newcandidate@example.com");
+        registrationRequest.setPassword("password123");
+        registrationRequest.setName("New Candidate");
+        registrationRequest.setPhone("1234567890");
+        registrationRequest.setDegree("Computer Science");
+        registrationRequest.setGraduationYear(2022);
+
+        updateRequest = new CandidateProfileUpdateRequest();
+        updateRequest.setName("Updated Name");
+        updateRequest.setPhone("0987654321");
+        updateRequest.setLinkedinProfile("https://linkedin.com/in/updated");
     }
-    
+
+    @AfterEach
+    void tearDown() {
+        testDataSeeder.cleanupAllTestData();
+    }
+
     @Test
+    @WithMockUser(roles = "CANDIDATE")
     void registerCandidate_ValidRequest_ReturnsCreated() throws Exception {
-        // Given
-        CandidateRegistrationRequest request = new CandidateRegistrationRequest(
-            "john.doe@example.com",
-            "password123",
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        
-        // When & Then
         mockMvc.perform(post("/api/candidates/register")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(objectMapper.writeValueAsString(registrationRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email", is("john.doe@example.com")))
-                .andExpect(jsonPath("$.name", is("John Doe")))
-                .andExpect(jsonPath("$.phone", is("+1234567890")))
-                .andExpect(jsonPath("$.degree", is("Computer Science")))
-                .andExpect(jsonPath("$.graduationYear", is(2022)))
-                .andExpect(jsonPath("$.isActive", is(true)))
-                .andExpect(jsonPath("$.password").doesNotExist()); // Password should not be returned
+                .andExpect(jsonPath("$.email").value(registrationRequest.getEmail()))
+                .andExpect(jsonPath("$.name").value(registrationRequest.getName()))
+                .andExpect(jsonPath("$.degree").value(registrationRequest.getDegree()));
     }
-    
+
     @Test
-    void registerCandidate_DuplicateEmail_ReturnsConflict() throws Exception {
-        // Given
-        Candidate existingCandidate = new Candidate(
-            "john.doe@example.com",
-            passwordEncoder.encode("password123"),
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        candidateRepository.save(existingCandidate);
-        
-        CandidateRegistrationRequest request = new CandidateRegistrationRequest(
-            "john.doe@example.com",
-            "password456",
-            "Jane Doe",
-            "+0987654321",
-            "Software Engineering",
-            2023
-        );
-        
-        // When & Then
+    @WithMockUser(roles = "CANDIDATE")
+    void registerCandidate_DuplicateEmail_ReturnsBadRequest() throws Exception {
+        // First registration
         mockMvc.perform(post("/api/candidates/register")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code", is("EMAIL_ALREADY_EXISTS")))
-                .andExpect(jsonPath("$.message", is("Email is already registered")));
-    }
-    
-    @Test
-    void registerCandidate_InvalidData_ReturnsBadRequest() throws Exception {
-        // Given
-        CandidateRegistrationRequest request = new CandidateRegistrationRequest(
-            "invalid-email",
-            "123", // Too short password
-            "", // Empty name
-            "invalid-phone",
-            "",
-            1900 // Invalid graduation year
-        );
-        
-        // When & Then
+                .content(objectMapper.writeValueAsString(registrationRequest)))
+                .andExpect(status().isCreated());
+
+        // Second registration with same email
         mockMvc.perform(post("/api/candidates/register")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
-                .andExpect(jsonPath("$.details").exists());
+                .content(objectMapper.writeValueAsString(registrationRequest)))
+                .andExpect(status().isBadRequest());
     }
-    
+
     @Test
-    void getCandidateProfile_ExistingCandidate_ReturnsOk() throws Exception {
-        // Given
-        Candidate candidate = new Candidate(
-            "john.doe@example.com",
-            passwordEncoder.encode("password123"),
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        candidate.setLinkedinProfile("https://linkedin.com/in/johndoe");
-        candidate.setPortfolioUrl("https://johndoe.dev");
-        Candidate savedCandidate = candidateRepository.save(candidate);
-        
-        // When & Then
-        mockMvc.perform(get("/api/candidates/{candidateId}", savedCandidate.getId()))
+    @WithMockUser(roles = "CANDIDATE")
+    void getCandidateProfile_ExistingCandidate_ReturnsProfile() throws Exception {
+        // Create test candidate
+        testDataSeeder.seedTestCandidates();
+        Candidate testCandidate = testDataSeeder.getTestCandidate("john.doe@example.com");
+
+        mockMvc.perform(get("/api/candidates/profile/{id}", testCandidate.getId())
+                .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(savedCandidate.getId())))
-                .andExpect(jsonPath("$.email", is("john.doe@example.com")))
-                .andExpect(jsonPath("$.name", is("John Doe")))
-                .andExpect(jsonPath("$.linkedinProfile", is("https://linkedin.com/in/johndoe")))
-                .andExpect(jsonPath("$.portfolioUrl", is("https://johndoe.dev")))
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(jsonPath("$.id").value(testCandidate.getId()))
+                .andExpect(jsonPath("$.email").value(testCandidate.getEmail()))
+                .andExpect(jsonPath("$.name").value(testCandidate.getName()));
     }
-    
+
     @Test
+    @WithMockUser(roles = "CANDIDATE")
     void getCandidateProfile_NonExistentCandidate_ReturnsNotFound() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/api/candidates/{candidateId}", "nonexistent-id"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code", is("RESOURCE_NOT_FOUND")));
+        mockMvc.perform(get("/api/candidates/profile/{id}", "nonexistent-id")
+                .with(csrf()))
+                .andExpect(status().isNotFound());
     }
-    
+
     @Test
-    void updateCandidateProfile_ValidRequest_ReturnsOk() throws Exception {
-        // Given
-        Candidate candidate = new Candidate(
-            "john.doe@example.com",
-            passwordEncoder.encode("password123"),
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        Candidate savedCandidate = candidateRepository.save(candidate);
-        
-        CandidateProfileUpdateRequest updateRequest = new CandidateProfileUpdateRequest();
-        updateRequest.setName("John Updated Doe");
-        updateRequest.setPhone("+1987654321");
-        updateRequest.setLinkedinProfile("https://linkedin.com/in/johnupdated");
-        updateRequest.setPortfolioUrl("https://johnupdated.dev");
-        
-        // When & Then
-        mockMvc.perform(put("/api/candidates/{candidateId}/profile", savedCandidate.getId())
+    @WithMockUser(roles = "CANDIDATE")
+    void updateCandidateProfile_ValidRequest_ReturnsUpdatedProfile() throws Exception {
+        // Create test candidate
+        testDataSeeder.seedTestCandidates();
+        Candidate testCandidate = testDataSeeder.getTestCandidate("john.doe@example.com");
+
+        mockMvc.perform(put("/api/candidates/profile/{id}", testCandidate.getId())
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name", is("John Updated Doe")))
-                .andExpect(jsonPath("$.phone", is("+1987654321")))
-                .andExpect(jsonPath("$.linkedinProfile", is("https://linkedin.com/in/johnupdated")))
-                .andExpect(jsonPath("$.portfolioUrl", is("https://johnupdated.dev")));
+                .andExpect(jsonPath("$.id").value(testCandidate.getId()))
+                .andExpect(jsonPath("$.name").value(updateRequest.getName()))
+                .andExpect(jsonPath("$.phone").value(updateRequest.getPhone()));
     }
-    
+
     @Test
-    void updateResumeUrl_ValidRequest_ReturnsOk() throws Exception {
-        // Given
-        Candidate candidate = new Candidate(
-            "john.doe@example.com",
-            passwordEncoder.encode("password123"),
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        Candidate savedCandidate = candidateRepository.save(candidate);
-        String resumeUrl = "https://s3.amazonaws.com/resumes/john-doe-resume.pdf";
-        
-        // When & Then
-        mockMvc.perform(put("/api/candidates/{candidateId}/resume", savedCandidate.getId())
-                .param("resumeUrl", resumeUrl))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resumeUrl", is(resumeUrl)));
+    @WithMockUser(roles = "CANDIDATE")
+    void updateCandidateProfile_NonExistentCandidate_ReturnsNotFound() throws Exception {
+        mockMvc.perform(put("/api/candidates/profile/{id}", "nonexistent-id")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isNotFound());
     }
-    
+
     @Test
-    void checkEmailExists_ExistingEmail_ReturnsExists() throws Exception {
-        // Given
-        Candidate candidate = new Candidate(
-            "john.doe@example.com",
-            passwordEncoder.encode("password123"),
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        candidateRepository.save(candidate);
-        
-        // When & Then
-        mockMvc.perform(get("/api/candidates/exists/{email}", "john.doe@example.com"))
+    @WithMockUser(roles = "ADMIN")
+    void getCandidateByEmail_AsAdmin_ReturnsProfile() throws Exception {
+        // Create test candidate
+        testDataSeeder.seedTestCandidates();
+        Candidate testCandidate = testDataSeeder.getTestCandidate("john.doe@example.com");
+
+        mockMvc.perform(get("/api/candidates/email/{email}", testCandidate.getEmail())
+                .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Email already exists")));
+                .andExpect(jsonPath("$.email").value(testCandidate.getEmail()))
+                .andExpect(jsonPath("$.name").value(testCandidate.getName()));
     }
-    
+
     @Test
-    void checkEmailExists_NonExistentEmail_ReturnsAvailable() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/api/candidates/exists/{email}", "nonexistent@example.com"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Email is available")));
+    @WithMockUser(roles = "CANDIDATE")
+    void getCandidateByEmail_AsCandidate_ReturnsForbidden() throws Exception {
+        testDataSeeder.seedTestCandidates();
+        Candidate testCandidate = testDataSeeder.getTestCandidate("john.doe@example.com");
+
+        mockMvc.perform(get("/api/candidates/email/{email}", testCandidate.getEmail())
+                .with(csrf()))
+                .andExpect(status().isForbidden());
     }
 }

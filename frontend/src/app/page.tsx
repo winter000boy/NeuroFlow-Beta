@@ -1,10 +1,81 @@
 import Link from "next/link"
+import { Metadata } from "next"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+export const metadata: Metadata = {
+  title: 'JobApp - Find Your Dream Job Today',
+  description: 'Connect with top employers and discover job opportunities that match your skills. Join thousands of professionals who found their perfect career with JobApp.',
+  keywords: [
+    'jobs',
+    'careers',
+    'employment',
+    'job search',
+    'hiring',
+    'job board',
+    'career opportunities',
+    'job listings',
+    'find jobs',
+    'apply jobs'
+  ],
+  openGraph: {
+    title: 'JobApp - Find Your Dream Job Today',
+    description: 'Connect with top employers and discover job opportunities that match your skills.',
+    type: 'website',
+    url: '/',
+    images: [
+      {
+        url: '/og-home.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'JobApp - Find Your Dream Job',
+      },
+    ],
+    siteName: 'JobApp',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'JobApp - Find Your Dream Job Today',
+    description: 'Connect with top employers and discover job opportunities that match your skills.',
+    images: ['/og-home.jpg'],
+  },
+  alternates: {
+    canonical: '/',
+  },
+}
+
 export default function Home() {
+  // Structured data for the homepage
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'JobApp',
+    description: 'Find your dream job and connect with top employers. Browse thousands of job opportunities across various industries.',
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://jobapp.com',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://jobapp.com'}/jobs?search={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'JobApp',
+      url: process.env.NEXT_PUBLIC_SITE_URL || 'https://jobapp.com',
+    },
+  }
+
   return (
-    <div className="flex flex-col">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+      <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
         <div className="container mx-auto px-4">
@@ -109,5 +180,6 @@ export default function Home() {
         </div>
       </section>
     </div>
+    </>
   )
 }

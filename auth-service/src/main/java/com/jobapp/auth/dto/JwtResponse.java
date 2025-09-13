@@ -1,14 +1,15 @@
 package com.jobapp.auth.dto;
 
 public class JwtResponse {
-    
+
     private String token;
     private String refreshToken;
     private String type = "Bearer";
     private String email;
     private String role;
 
-    public JwtResponse() {}
+    public JwtResponse() {
+    }
 
     public JwtResponse(String token, String refreshToken, String email, String role) {
         this.token = token;

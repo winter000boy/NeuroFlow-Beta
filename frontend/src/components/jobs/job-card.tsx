@@ -1,14 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import Link from 'next/link'
 import { MapPin, Clock, DollarSign, Building2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { OptimizedImage } from '@/components/ui/optimized-image'
+import { LazyJobCard } from '@/components/ui/lazy-load'
 import { Job, JobApplication } from '@/types/job'
 import { useAuth } from '@/hooks/use-auth'
 import { useJobApplications } from '@/hooks/use-jobs'
+import { useRenderPerformance } from '@/hooks/use-performance'
 import { formatDistanceToNow } from 'date-fns'
 
 interface JobCardProps {
@@ -46,7 +49,7 @@ const APPLICATION_STATUS_VARIANTS = {
   REJECTED: 'destructive',
 } as const
 
-export function JobCard({ 
+const JobCardContent = memo(function JobCardContent({ 
   job, 
   onApply, 
   showApplyButton = true, 
@@ -56,6 +59,9 @@ export function JobCard({
   const { getApplicationStatus } = useJobApplications()
   const [applicationStatus, setApplicationStatus] = useState<JobApplication | null>(null)
   const [applying, setApplying] = useState(false)
+
+  // Monitor render performance in development
+  useRenderPerformance('JobCard')
 
   useEffect(() => {
     if (user?.role === 'CANDIDATE' && showApplyButton) {
@@ -119,29 +125,46 @@ export function JobCard({
     <Card className="hover:shadow-md transition-shadow duration-200">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <Link 
-              href={`/jobs/${job.id}`}
-              className="block hover:text-primary transition-colors"
-            >
-              <h3 className="text-lg font-semibold truncate">
-                {highlightText(job.title, highlightKeywords)}
-              </h3>
-            </Link>
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Company Logo */}
+            {job.employer.logoUrl && (
+              <div className="flex-shrink-0">
+                <OptimizedImage
+                  src={job.employer.logoUrl}
+                  alt={`${job.employer.companyName} logo`}
+                  width={48}
+                  height={48}
+                  className="rounded-lg border border-gray-200 dark:border-gray-700"
+                  loading="lazy"
+                  quality={60}
+                />
+              </div>
+            )}
             
-            <div className="flex items-center gap-2 mt-1 text-muted-foreground">
-              <Building2 className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">{job.employer.companyName}</span>
-              {job.employer.website && (
-                <a
-                  href={job.employer.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
+            <div className="flex-1 min-w-0">
+              <Link 
+                href={`/jobs/${job.id}`}
+                className="block hover:text-primary transition-colors"
+              >
+                <h3 className="text-lg font-semibold truncate">
+                  {highlightText(job.title, highlightKeywords)}
+                </h3>
+              </Link>
+              
+              <div className="flex items-center gap-2 mt-1 text-muted-foreground">
+                <Building2 className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{job.employer.companyName}</span>
+                {job.employer.website && (
+                  <a
+                    href={job.employer.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
           
@@ -203,5 +226,14 @@ export function JobCard({
         </div>
       </CardFooter>
     </Card>
+  )
+})
+
+// Main JobCard component with lazy loading wrapper
+export function JobCard(props: JobCardProps) {
+  return (
+    <LazyJobCard>
+      <JobCardContent {...props} />
+    </LazyJobCard>
   )
 }

@@ -7,7 +7,6 @@ import com.jobapp.user.model.Candidate;
 import com.jobapp.user.repository.CandidateRepository;
 import com.jobapp.user.exception.ResourceNotFoundException;
 import com.jobapp.user.exception.EmailAlreadyExistsException;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,232 +22,258 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for CandidateService
- * Requirements: 1.1, 1.2, 1.4, 1.5
- */
 @ExtendWith(MockitoExtension.class)
 class CandidateServiceTest {
-    
+
     @Mock
     private CandidateRepository candidateRepository;
-    
+
     @Mock
     private PasswordEncoder passwordEncoder;
-    
+
     @InjectMocks
     private CandidateService candidateService;
-    
+
     private CandidateRegistrationRequest registrationRequest;
-    private Candidate candidate;
-    
+    private CandidateProfileUpdateRequest updateRequest;
+    private Candidate testCandidate;
+
     @BeforeEach
     void setUp() {
-        registrationRequest = new CandidateRegistrationRequest(
-            "john.doe@example.com",
-            "password123",
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        
-        candidate = new Candidate(
-            "john.doe@example.com",
-            "encodedPassword",
-            "John Doe",
-            "+1234567890",
-            "Computer Science",
-            2022
-        );
-        candidate.setId("candidate123");
-        candidate.setCreatedAt(LocalDateTime.now());
-        candidate.setUpdatedAt(LocalDateTime.now());
+        registrationRequest = new CandidateRegistrationRequest();
+        registrationRequest.setEmail("john.doe@example.com");
+        registrationRequest.setPassword("password123");
+        registrationRequest.setName("John Doe");
+        registrationRequest.setPhone("1234567890");
+        registrationRequest.setDegree("Computer Science");
+        registrationRequest.setGraduationYear(2022);
+
+        updateRequest = new CandidateProfileUpdateRequest();
+        updateRequest.setName("John Updated");
+        updateRequest.setPhone("0987654321");
+        updateRequest.setDegree("Software Engineering");
+        updateRequest.setGraduationYear(2023);
+        updateRequest.setLinkedinProfile("https://linkedin.com/in/johndoe");
+        updateRequest.setPortfolioUrl("https://johndoe.dev");
+
+        testCandidate = new Candidate();
+        testCandidate.setId("candidate123");
+        testCandidate.setEmail("john.doe@example.com");
+        testCandidate.setPassword("encodedPassword");
+        testCandidate.setName("John Doe");
+        testCandidate.setPhone("1234567890");
+        testCandidate.setDegree("Computer Science");
+        testCandidate.setGraduationYear(2022);
+        testCandidate.setIsActive(true);
+        testCandidate.setCreatedAt(LocalDateTime.now());
+        testCandidate.setUpdatedAt(LocalDateTime.now());
     }
-    
+
     @Test
     void registerCandidate_ValidRequest_ReturnsResponse() {
         // Given
-        when(candidateRepository.findByEmail(registrationRequest.getEmail()))
-            .thenReturn(Optional.empty());
-        when(passwordEncoder.encode(registrationRequest.getPassword()))
-            .thenReturn("encodedPassword");
-        when(candidateRepository.save(any(Candidate.class)))
-            .thenReturn(candidate);
-        
+        when(candidateRepository.findByEmail(registrationRequest.getEmail())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(registrationRequest.getPassword())).thenReturn("encodedPassword");
+        when(candidateRepository.save(any(Candidate.class))).thenReturn(testCandidate);
+
         // When
         CandidateResponse response = candidateService.registerCandidate(registrationRequest);
-        
+
         // Then
         assertNotNull(response);
-        assertEquals("john.doe@example.com", response.getEmail());
-        assertEquals("John Doe", response.getName());
-        assertEquals("+1234567890", response.getPhone());
-        assertEquals("Computer Science", response.getDegree());
-        assertEquals(2022, response.getGraduationYear());
+        assertEquals(testCandidate.getId(), response.getId());
+        assertEquals(testCandidate.getEmail(), response.getEmail());
+        assertEquals(testCandidate.getName(), response.getName());
+        assertEquals(testCandidate.getPhone(), response.getPhone());
+        assertEquals(testCandidate.getDegree(), response.getDegree());
+        assertEquals(testCandidate.getGraduationYear(), response.getGraduationYear());
         assertTrue(response.getIsActive());
-        
-        verify(candidateRepository).findByEmail("john.doe@example.com");
-        verify(passwordEncoder).encode("password123");
+
+        verify(candidateRepository).findByEmail(registrationRequest.getEmail());
+        verify(passwordEncoder).encode(registrationRequest.getPassword());
         verify(candidateRepository).save(any(Candidate.class));
     }
-    
+
     @Test
-    void registerCandidate_DuplicateEmail_ThrowsException() {
+    void registerCandidate_EmailAlreadyExists_ThrowsException() {
         // Given
-        when(candidateRepository.findByEmail(registrationRequest.getEmail()))
-            .thenReturn(Optional.of(candidate));
-        
+        when(candidateRepository.findByEmail(registrationRequest.getEmail())).thenReturn(Optional.of(testCandidate));
+
         // When & Then
-        EmailAlreadyExistsException exception = assertThrows(
-            EmailAlreadyExistsException.class,
-            () -> candidateService.registerCandidate(registrationRequest)
-        );
-        
+        EmailAlreadyExistsException exception = assertThrows(EmailAlreadyExistsException.class,
+            () -> candidateService.registerCandidate(registrationRequest));
         assertEquals("Email is already registered", exception.getMessage());
-        verify(candidateRepository).findByEmail("john.doe@example.com");
+
+        verify(candidateRepository).findByEmail(registrationRequest.getEmail());
         verify(candidateRepository, never()).save(any(Candidate.class));
     }
-    
+
     @Test
-    void getCandidateProfile_ExistingCandidate_ReturnsResponse() {
+    void getCandidateProfile_ValidId_ReturnsResponse() {
         // Given
-        when(candidateRepository.findById("candidate123"))
-            .thenReturn(Optional.of(candidate));
-        
+        String candidateId = "candidate123";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.of(testCandidate));
+
         // When
-        CandidateResponse response = candidateService.getCandidateProfile("candidate123");
-        
+        CandidateResponse response = candidateService.getCandidateProfile(candidateId);
+
         // Then
         assertNotNull(response);
-        assertEquals("candidate123", response.getId());
-        assertEquals("john.doe@example.com", response.getEmail());
-        assertEquals("John Doe", response.getName());
-        
-        verify(candidateRepository).findById("candidate123");
+        assertEquals(testCandidate.getId(), response.getId());
+        assertEquals(testCandidate.getEmail(), response.getEmail());
+        assertEquals(testCandidate.getName(), response.getName());
+        verify(candidateRepository).findById(candidateId);
     }
-    
+
     @Test
-    void getCandidateProfile_NonExistentCandidate_ThrowsException() {
+    void getCandidateProfile_InvalidId_ThrowsException() {
         // Given
-        when(candidateRepository.findById("nonexistent"))
-            .thenReturn(Optional.empty());
-        
+        String candidateId = "invalid123";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.empty());
+
         // When & Then
-        ResourceNotFoundException exception = assertThrows(
-            ResourceNotFoundException.class,
-            () -> candidateService.getCandidateProfile("nonexistent")
-        );
-        
-        assertEquals("Candidate not found with id: nonexistent", exception.getMessage());
-        verify(candidateRepository).findById("nonexistent");
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+            () -> candidateService.getCandidateProfile(candidateId));
+        assertEquals("Candidate not found with id: " + candidateId, exception.getMessage());
+        verify(candidateRepository).findById(candidateId);
     }
-    
+
     @Test
-    void getCandidateByEmail_ExistingCandidate_ReturnsResponse() {
+    void getCandidateByEmail_ValidEmail_ReturnsResponse() {
         // Given
-        when(candidateRepository.findByEmail("john.doe@example.com"))
-            .thenReturn(Optional.of(candidate));
-        
+        String email = "john.doe@example.com";
+        when(candidateRepository.findByEmail(email)).thenReturn(Optional.of(testCandidate));
+
         // When
-        CandidateResponse response = candidateService.getCandidateByEmail("john.doe@example.com");
-        
+        CandidateResponse response = candidateService.getCandidateByEmail(email);
+
         // Then
         assertNotNull(response);
-        assertEquals("john.doe@example.com", response.getEmail());
-        assertEquals("John Doe", response.getName());
-        
-        verify(candidateRepository).findByEmail("john.doe@example.com");
+        assertEquals(testCandidate.getId(), response.getId());
+        assertEquals(testCandidate.getEmail(), response.getEmail());
+        verify(candidateRepository).findByEmail(email);
     }
-    
+
+    @Test
+    void getCandidateByEmail_InvalidEmail_ThrowsException() {
+        // Given
+        String email = "invalid@example.com";
+        when(candidateRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // When & Then
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+            () -> candidateService.getCandidateByEmail(email));
+        assertEquals("Candidate not found with email: " + email, exception.getMessage());
+        verify(candidateRepository).findByEmail(email);
+    }
+
     @Test
     void updateCandidateProfile_ValidRequest_ReturnsUpdatedResponse() {
         // Given
-        CandidateProfileUpdateRequest updateRequest = new CandidateProfileUpdateRequest();
-        updateRequest.setName("John Updated Doe");
-        updateRequest.setPhone("+1987654321");
-        updateRequest.setLinkedinProfile("https://linkedin.com/in/johnupdated");
-        updateRequest.setPortfolioUrl("https://johnupdated.dev");
-        
-        Candidate updatedCandidate = new Candidate(candidate.getEmail(), candidate.getPassword(),
-            "John Updated Doe", "+1987654321", candidate.getDegree(), candidate.getGraduationYear());
-        updatedCandidate.setId(candidate.getId());
-        updatedCandidate.setLinkedinProfile("https://linkedin.com/in/johnupdated");
-        updatedCandidate.setPortfolioUrl("https://johnupdated.dev");
-        updatedCandidate.setCreatedAt(candidate.getCreatedAt());
-        updatedCandidate.setUpdatedAt(LocalDateTime.now());
-        
-        when(candidateRepository.findById("candidate123"))
-            .thenReturn(Optional.of(candidate));
-        when(candidateRepository.save(any(Candidate.class)))
-            .thenReturn(updatedCandidate);
-        
+        String candidateId = "candidate123";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.of(testCandidate));
+        when(candidateRepository.save(any(Candidate.class))).thenReturn(testCandidate);
+
         // When
-        CandidateResponse response = candidateService.updateCandidateProfile("candidate123", updateRequest);
-        
+        CandidateResponse response = candidateService.updateCandidateProfile(candidateId, updateRequest);
+
         // Then
         assertNotNull(response);
-        assertEquals("John Updated Doe", response.getName());
-        assertEquals("+1987654321", response.getPhone());
-        assertEquals("https://linkedin.com/in/johnupdated", response.getLinkedinProfile());
-        assertEquals("https://johnupdated.dev", response.getPortfolioUrl());
-        
-        verify(candidateRepository).findById("candidate123");
+        verify(candidateRepository).findById(candidateId);
         verify(candidateRepository).save(any(Candidate.class));
     }
-    
+
+    @Test
+    void updateCandidateProfile_InvalidId_ThrowsException() {
+        // Given
+        String candidateId = "invalid123";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.empty());
+
+        // When & Then
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+            () -> candidateService.updateCandidateProfile(candidateId, updateRequest));
+        assertEquals("Candidate not found with id: " + candidateId, exception.getMessage());
+        verify(candidateRepository).findById(candidateId);
+        verify(candidateRepository, never()).save(any(Candidate.class));
+    }
+
+    @Test
+    void updateCandidateProfile_PartialUpdate_UpdatesOnlyProvidedFields() {
+        // Given
+        String candidateId = "candidate123";
+        CandidateProfileUpdateRequest partialRequest = new CandidateProfileUpdateRequest();
+        partialRequest.setName("Updated Name");
+        // Other fields are null
+
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.of(testCandidate));
+        when(candidateRepository.save(any(Candidate.class))).thenReturn(testCandidate);
+
+        // When
+        CandidateResponse response = candidateService.updateCandidateProfile(candidateId, partialRequest);
+
+        // Then
+        assertNotNull(response);
+        verify(candidateRepository).findById(candidateId);
+        verify(candidateRepository).save(any(Candidate.class));
+    }
+
     @Test
     void updateResumeUrl_ValidRequest_ReturnsUpdatedResponse() {
         // Given
-        String resumeUrl = "https://s3.amazonaws.com/resumes/john-doe-resume.pdf";
-        Candidate updatedCandidate = new Candidate(candidate.getEmail(), candidate.getPassword(),
-            candidate.getName(), candidate.getPhone(), candidate.getDegree(), candidate.getGraduationYear());
-        updatedCandidate.setId(candidate.getId());
-        updatedCandidate.setResumeUrl(resumeUrl);
-        updatedCandidate.setCreatedAt(candidate.getCreatedAt());
-        updatedCandidate.setUpdatedAt(LocalDateTime.now());
-        
-        when(candidateRepository.findById("candidate123"))
-            .thenReturn(Optional.of(candidate));
-        when(candidateRepository.save(any(Candidate.class)))
-            .thenReturn(updatedCandidate);
-        
+        String candidateId = "candidate123";
+        String resumeUrl = "https://example.com/resume.pdf";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.of(testCandidate));
+        when(candidateRepository.save(any(Candidate.class))).thenReturn(testCandidate);
+
         // When
-        CandidateResponse response = candidateService.updateResumeUrl("candidate123", resumeUrl);
-        
+        CandidateResponse response = candidateService.updateResumeUrl(candidateId, resumeUrl);
+
         // Then
         assertNotNull(response);
-        assertEquals(resumeUrl, response.getResumeUrl());
-        
-        verify(candidateRepository).findById("candidate123");
+        verify(candidateRepository).findById(candidateId);
         verify(candidateRepository).save(any(Candidate.class));
     }
-    
+
     @Test
-    void existsByEmail_ExistingEmail_ReturnsTrue() {
+    void updateResumeUrl_InvalidId_ThrowsException() {
         // Given
-        when(candidateRepository.findByEmail("john.doe@example.com"))
-            .thenReturn(Optional.of(candidate));
-        
-        // When
-        boolean exists = candidateService.existsByEmail("john.doe@example.com");
-        
-        // Then
-        assertTrue(exists);
-        verify(candidateRepository).findByEmail("john.doe@example.com");
+        String candidateId = "invalid123";
+        String resumeUrl = "https://example.com/resume.pdf";
+        when(candidateRepository.findById(candidateId)).thenReturn(Optional.empty());
+
+        // When & Then
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+            () -> candidateService.updateResumeUrl(candidateId, resumeUrl));
+        assertEquals("Candidate not found with id: " + candidateId, exception.getMessage());
+        verify(candidateRepository).findById(candidateId);
+        verify(candidateRepository, never()).save(any(Candidate.class));
     }
-    
+
     @Test
-    void existsByEmail_NonExistentEmail_ReturnsFalse() {
+    void existsByEmail_EmailExists_ReturnsTrue() {
         // Given
-        when(candidateRepository.findByEmail("nonexistent@example.com"))
-            .thenReturn(Optional.empty());
-        
+        String email = "existing@example.com";
+        when(candidateRepository.findByEmail(email)).thenReturn(Optional.of(testCandidate));
+
         // When
-        boolean exists = candidateService.existsByEmail("nonexistent@example.com");
-        
+        boolean result = candidateService.existsByEmail(email);
+
         // Then
-        assertFalse(exists);
-        verify(candidateRepository).findByEmail("nonexistent@example.com");
+        assertTrue(result);
+        verify(candidateRepository).findByEmail(email);
+    }
+
+    @Test
+    void existsByEmail_EmailNotExists_ReturnsFalse() {
+        // Given
+        String email = "nonexistent@example.com";
+        when(candidateRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // When
+        boolean result = candidateService.existsByEmail(email);
+
+        // Then
+        assertFalse(result);
+        verify(candidateRepository).findByEmail(email);
     }
 }

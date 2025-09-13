@@ -18,6 +18,7 @@ export interface Job {
     companyName: string
     logoUrl?: string
     website?: string
+    description?: string
   }
 }
 

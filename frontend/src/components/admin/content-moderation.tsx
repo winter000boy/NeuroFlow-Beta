@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -141,7 +141,7 @@ export function ContentModeration() {
   const [isLoading, setIsLoading] = useState(false)
 
   // Filter items based on search and filters
-  React.useEffect(() => {
+  useEffect(() => {
     let filtered = items
 
     if (searchTerm) {
@@ -409,17 +409,13 @@ export function ContentModeration() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <DropdownMenuItem onSelect={(e) => {
-                                e.preventDefault()
-                                setSelectedItem(item)
-                              }}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Review Content
-                              </DropdownMenuItem>
-                            </DialogTrigger>
-                          </Dialog>
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault()
+                            setSelectedItem(item)
+                          }}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Review Content
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {(item.status === 'pending' || item.status === 'flagged') && (
                             <>
