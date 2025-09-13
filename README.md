@@ -8,7 +8,7 @@ Get the platform running in minutes:
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/winter000boy/NeuroFlow-Beta.git
 cd job-application-platform
 cp .env.example .env
 
